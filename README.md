@@ -231,89 +231,204 @@ curl http://localhost:3000/texts/contador?id=1
 curl http://localhost:3000/texts/contador?id=1
 ```
 
-## 📁 Estructura del Proyecto
+## 📡 Documentación de Endpoints
 
-```
-/project-root
-├── package.json
-├── tsconfig.json
-├── README.md
-└── src/
-    └── index.ts
-```
+### Estructura Base
+Todos los endpoints están definidos en `src/index.ts` y siguen el patrón RESTful. Cada endpoint está implementado como una función separada para mejor mantenibilidad.
 
-## 🛠️ Tecnologías Utilizadas
+### 1. POST /texts
+Crea un nuevo texto en el sistema.
 
-- Node.js
-- Express.js
-- TypeScript
-- ts-node-dev (para desarrollo)
-
-## 📝 Notas de Desarrollo
-
-- El servidor utiliza almacenamiento en memoria para los textos
-- Los IDs se generan automáticamente de forma incremental
-- La función de conteo de palabras ignora espacios múltiples y líneas vacías
-- Se utiliza el tipo `RequestHandler` de Express para tipar correctamente los manejadores de rutas
-- Las rutas se manejan a través del Router de Express para mejor organización
-- El manejo de errores se realiza sin retornar directamente las respuestas
-
-## 🔍 Pruebas
-
-Para probar todos los endpoints en Windows, puedes usar los siguientes comandos en secuencia:
-
-1. Crear un texto:
-```bash
-curl -X POST http://localhost:3000/texts -H "Content-Type: application/json" -d "{\"content\": \"Hola mundo\"}"
+**Request:**
+```json
+{
+  "content": "string"
+}
 ```
 
-2. Ver todos los textos:
-```bash
-curl http://localhost:3000/texts
+**Response (201 Created):**
+```json
+{
+  "id": number,
+  "content": "string"
+}
 ```
 
-3. Ver el texto en mayúsculas:
-```bash
-curl http://localhost:3000/texts/1/uppercase
+**Response (400 Bad Request):**
+```json
+{
+  "error": "El contenido es requerido y debe ser una cadena de texto"
+}
 ```
 
-4. Contar palabras:
-```bash
-curl http://localhost:3000/texts/contador?id=1
-```
-
-Nota: En Windows, es importante usar comillas dobles escapadas (`\"`) para los valores JSON en el cuerpo de la petición. Los comandos con backslashes (`\`) son para sistemas Unix/Linux/Mac.
-
-## 💻 Implementación del Servidor
-
-El servidor está implementado en `src/index.ts` y utiliza las siguientes características:
-
-### Tipos y Estructuras
+**Implementación:**
 ```typescript
-type TextItem = {
-  id: number;
-  content: string;
+const createText: RequestHandler = (req, res) => {
+  const { content } = req.body as { content: string };
+  
+  if (!content || typeof content !== 'string') {
+    res.status(400).json({ error: 'El contenido es requerido y debe ser una cadena de texto' });
+    return;
+  }
+
+  const newText: TextItem = {
+    id: nextId++,
+    content
+  };
+
+  texts.push(newText);
+  res.status(201).json(newText);
 };
 ```
 
-### Almacenamiento
-- Se utiliza un array en memoria para almacenar los textos
-- Los IDs se generan automáticamente de forma incremental
+### 2. GET /texts
+Obtiene todos los textos almacenados.
 
-### Funciones Principales
-1. `countWords`: Función para contar palabras en un texto
-2. Endpoints implementados:
-   - POST /texts: Crea un nuevo texto
-   - GET /texts: Obtiene todos los textos
-   - GET /texts/:id/uppercase: Obtiene un texto en mayúsculas
-   - GET /texts/contador: Cuenta las palabras de un texto
+**Response (200 OK):**
+```json
+[
+  {
+    "id": number,
+    "content": "string"
+  }
+]
+```
 
-### Manejo de Errores
-- Validación de entrada para el contenido del texto
-- Manejo de IDs inválidos
-- Respuestas apropiadas para textos no encontrados
+**Implementación:**
+```typescript
+const getAllTexts: RequestHandler = (_req, res) => {
+  res.json(texts);
+};
+```
 
-### Configuración del Servidor
-- Puerto: 3000
-- Middleware: express.json() para parsear JSON
-- Tipado completo con TypeScript 
+### 3. GET /texts/:id/uppercase
+Obtiene un texto específico en mayúsculas.
+
+**Response (200 OK):**
+```json
+{
+  "content": "STRING"
+}
+```
+
+**Response (404 Not Found):**
+```json
+{
+  "error": "Texto no encontrado"
+}
+```
+
+**Implementación:**
+```typescript
+const getUppercaseText: RequestHandler = (req, res) => {
+  const id = parseInt(req.params.id);
+  const text = texts.find(t => t.id === id);
+
+  if (!text) {
+    res.status(404).json({ error: 'Texto no encontrado' });
+    return;
+  }
+
+  res.json({ content: text.content.toUpperCase() });
+};
+```
+
+### 4. GET /texts/contador
+Cuenta las palabras de un texto específico.
+
+**Query Parameters:**
+- `id`: ID del texto a contar
+
+**Response (200 OK):**
+```json
+{
+  "wordCount": number
+}
+```
+
+**Response (400 Bad Request):**
+```json
+{
+  "error": "ID inválido"
+}
+```
+
+**Response (404 Not Found):**
+```json
+{
+  "error": "Texto no encontrado"
+}
+```
+
+**Implementación:**
+```typescript
+const countTextWords: RequestHandler = (req, res) => {
+  const id = parseInt(req.query.id as string);
+  
+  if (isNaN(id)) {
+    res.status(400).json({ error: 'ID inválido' });
+    return;
+  }
+
+  const text = texts.find(t => t.id === id);
+
+  if (!text) {
+    res.status(404).json({ error: 'Texto no encontrado' });
+    return;
+  }
+
+  const wordCount = countWords(text.content);
+  res.json({ wordCount });
+};
+```
+
+## 🔧 Modificación de Endpoints
+
+### Agregar un Nuevo Endpoint
+1. Define la función del manejador:
+```typescript
+const nuevoEndpoint: RequestHandler = (req, res) => {
+  // Lógica del endpoint
+};
+```
+
+2. Registra la ruta en el router:
+```typescript
+router.get('/nueva-ruta', nuevoEndpoint);
+```
+
+### Modificar un Endpoint Existente
+1. Localiza la función del manejador en `src/index.ts`
+2. Modifica la lógica según sea necesario
+3. Actualiza la documentación en el README.md
+
+### Ejemplo de Modificación
+Para agregar un endpoint que devuelva el texto en minúsculas:
+
+```typescript
+// 1. Agregar la función del manejador
+const getLowercaseText: RequestHandler = (req, res) => {
+  const id = parseInt(req.params.id);
+  const text = texts.find(t => t.id === id);
+
+  if (!text) {
+    res.status(404).json({ error: 'Texto no encontrado' });
+    return;
+  }
+
+  res.json({ content: text.content.toLowerCase() });
+};
+
+// 2. Registrar la ruta
+router.get('/texts/:id/lowercase', getLowercaseText);
+```
+
+### Consideraciones al Modificar
+1. Mantén la consistencia en el manejo de errores
+2. Actualiza la documentación
+3. Asegúrate de que los tipos TypeScript sean correctos
+4. Prueba los cambios con los comandos curl proporcionados
+
+## 📁 Estructura del Proyecto
+
+```
